@@ -10,6 +10,7 @@ import whisper
 import soundfile as sf
 import librosa
 import scipy
+import copy
 
 device_list = sd.query_devices()
 print(device_list)
@@ -26,6 +27,7 @@ class Recod():
         self.z = 0
         self.y = 0
         self.num = 0
+        self.save_ls = np.array([0])
         #sd.default.device = [12, 12] # Input, Outputデバイス指定
 
 
@@ -38,10 +40,10 @@ class Recod():
         self.plotdata = np.roll(self.plotdata, -shift, axis=0)
         self.plotdata[-shift:] = data
         self.time_end = time.time()
-        #print((self.time_end-self.time_sta)%1)
         if (self.time_end - self.time_sta) > 0.2 * (self.i+1):
             avg = np.mean(np.abs(self.plotdata[:-1000]))
             if avg < 0.05:
+                self.i = self.i + 1
                 print(self.i,avg,data.shape)
                 if self.y:
                     self.z = 1
@@ -50,26 +52,17 @@ class Recod():
             else:
                 self.y = 1
                 print("listen",avg)
+                self.i += 1
             if self.z:
-                #x = x + 1
-                self.save_data = self.save_data / self.save_data.max() * np.iinfo(np.int16).max
-                self.save_data = self.save_data.astype(np.int16)
-                with wave.open('./wav_file/test{}.wav'.format(str(self.num)), mode='w') as wb:
-                    wb.setnchannels(1)  # モノラル
-                    wb.setsampwidth(2)  # 16bit=2byte
-                    wb.setframerate(44100)
-                    wb.writeframes(self.save_data.tobytes())  # バイト列に変換
-                wav, fs = sf.read('./wav_file/test{}.wav'.format(str(self.num)))
-                print(wav)
-                wav_trimmed, index = librosa.effects.trim(wav, top_db=25)
-                wav_filtered = scipy.signal.wiener(wav_trimmed)
-                print(wav_filtered)
-                sf.write(file='./wav_file/test{}.wav'.format(str(self.num)),data=wav_filtered,samplerate=fs)
-                self.save_data = []
+                ls = np.append(copy.copy(self.save_ls),self.save_data,axis=0)
+                self.save_ls = copy.copy(ls)
+                print(self.save_data)
+                print(self.save_ls)
+                self.i += 1
+                self.save_data = np.array([])
                 self.z = 0
                 self.y = 0
                 self.num += 1
-
 
         #if data[-1] <
         #print(self.save_data.shape)
@@ -113,7 +106,31 @@ class Recod():
                 dtype='float32',
                 callback=self.callback
                 ):
-            sd.sleep(int(1000 * 1000))
+            try:
+                sd.sleep(int(1000 * 1000))
+            except KeyboardInterrupt:
+                print(self.save_ls,self.save_data)
+                self.save_data = self.save_ls
+                print(self.save_ls,self.save_data)
+                self.save_data = self.save_data / self.save_data.max() * np.iinfo(np.int16).max
+                self.save_data = self.save_data.astype(np.int16)
+                with wave.open('./wav_file/test{}.wav'.format(str(self.num)), mode='w') as wb:
+                    wb.setnchannels(1)  # モノラル
+                    wb.setsampwidth(2)  # 16bit=2byte
+                    wb.setframerate(44100)
+                    wb.writeframes(self.save_data.tobytes())  # バイト列に変換
+                wav, fs = sf.read('./wav_file/test{}.wav'.format(str(self.num)))
+                print(wav)
+                wav_trimmed, index = librosa.effects.trim(wav, top_db=25)
+                wav_filtered = scipy.signal.wiener(wav_trimmed)
+                print(wav_filtered)
+                sf.write(file='./wav_file/test{}.wav'.format(str(self.num)),data=wav_filtered,samplerate=fs)
+                self.save_data = []
+                self.z = 0
+                self.y = 0
+                self.num += 1
+
+
 #ani = FuncAnimation(fig, update_plot, interval=30, blit=True)
 
 #with stream:
