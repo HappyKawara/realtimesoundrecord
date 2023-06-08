@@ -7,7 +7,9 @@ import wave
 import time
 import threading
 import whisper
-
+import soundfile as sf
+import librosa
+import scipy
 
 device_list = sd.query_devices()
 print(device_list)
@@ -39,11 +41,12 @@ class Recod():
         #print((self.time_end-self.time_sta)%1)
         if (self.time_end - self.time_sta) > 0.2 * (self.i+1):
             avg = np.mean(np.abs(self.plotdata[:-1000]))
-            if avg < 0.2:
-                self.save_data = np.array([])
+            if avg < 0.05:
                 print(self.i,avg,data.shape)
                 if self.y:
                     self.z = 1
+                else:
+                    self.save_data = np.array([])
             else:
                 self.y = 1
                 print("listen",avg)
@@ -56,6 +59,12 @@ class Recod():
                     wb.setsampwidth(2)  # 16bit=2byte
                     wb.setframerate(44100)
                     wb.writeframes(self.save_data.tobytes())  # バイト列に変換
+                wav, fs = sf.read('./wav_file/test{}.wav'.format(str(self.num)))
+                print(wav)
+                wav_trimmed, index = librosa.effects.trim(wav, top_db=25)
+                wav_filtered = scipy.signal.wiener(wav_trimmed)
+                print(wav_filtered)
+                sf.write(file='./wav_file/test{}.wav'.format(str(self.num)),data=wav_filtered,samplerate=fs)
                 self.save_data = []
                 self.z = 0
                 self.y = 0
