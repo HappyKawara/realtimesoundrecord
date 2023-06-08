@@ -27,18 +27,18 @@ class Recod():
 
     def callback(self,indata,frames,ti,status):
         # indata.shape=(n_samples, n_channels)
-        data = indata[::downsample, 0]
+        data = indata[::self.downsample, 0]
         self.save_data =  np.append(self.save_data,data)
         shift = len(data)
-        self.plotdata = np.roll(plotdata, -shift, axis=0)
+        self.plotdata = np.roll(self.plotdata, -shift, axis=0)
         self.plotdata[-shift:] = data
         self.time_end = time.time()
         #print((self.time_end-self.time_sta)%1)
-        if (self.time_end - self.time_sta) > 0.2 * (i+1):
+        if (self.time_end - self.time_sta) > 0.2 * (self.i+1):
             avg = np.mean(np.abs(self.plotdata[:-1000]))
-            if avg < 0.05:
+            if avg < 0.3:
                 self.i = self.i + 1
-                print(i,avg,data.shape)
+                print(self.i,avg,data.shape)
             else:
                 print("listen",avg)
                 self.i = self.i + 1
@@ -82,26 +82,25 @@ class Recod():
         """This is called by matplotlib for each plot update.
         """
         self.plotdata
-        line.set_ydata(self.plotdata)
-        return line,
+        self.line.set_ydata(self.plotdata)
+        return self.line,
 
     def main(self):
-        downsample = 1
-        length = int(1000 * 44100 / (1000 * downsample))
+        self.downsample = 1
+        length = int(1000 * 44100 / (1000 * self.downsample))
         self.plotdata = np.zeros((length))
 
         fig, ax = plt.subplots()
-        line, = ax.plot(self.plotdata)
+        self.line, = ax.plot(self.plotdata)
         ax.set_ylim([-1.0, 1.0])
         ax.set_xlim([0, length])
         ax.yaxis.grid(True)
         fig.tight_layout()
         self.time_sta = time.time()
-        call = Recod.callback
         with sd.InputStream(
                 channels=1,
                 dtype='float32',
-                callback=call
+                callback=self.callback
                 ):
             sd.sleep(int(1000 * 1000))
 #ani = FuncAnimation(fig, update_plot, interval=30, blit=True)
